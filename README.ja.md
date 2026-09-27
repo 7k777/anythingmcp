@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="AnythingMCP は ERP、E コマース、REST、SOAP、SQL の各システムを Claude と ChatGPT 用の MCP ツールに変換します。261 のコネクター、うち 21 は API キー不要。" width="100%" />
+  <img src="docs/assets/banner.png" alt="AnythingMCP は ERP、E コマース、REST、SOAP、SQL の各システムを Claude と ChatGPT 用の MCP ツールに変換します。263 のコネクター、うち 21 は API キー不要。" width="100%" />
 </p>
 
 <h1 align="center">AnythingMCP</h1>
@@ -10,7 +10,7 @@
 
 <p align="center">
   <strong>REST/OpenAPI、SOAP、GraphQL、SQL のあらゆる API を、Claude、ChatGPT、Copilot 用の MCP ツールに変換します。</strong><br/>
-  コード不要のセルフホスト型 MCP サーバー兼ゲートウェイです。SAP Business One、Odoo、Xentral、weclapp、Shopware、WooCommerce、Amazon Seller、Kaufland など、ERP や E コマースを含む 261 種類の既製アダプターを用意しています。
+  コード不要のセルフホスト型 MCP サーバー兼ゲートウェイです。SAP Business One、Odoo、Xentral、weclapp、Shopware、WooCommerce、Amazon Seller、Kaufland など、ERP や E コマースを含む 263 種類の既製アダプターを用意しています。
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@ docker compose up -d   # → http://localhost:3000
 
 この文書で繰り返し使う 3 つの用語は、それぞれ異なるものを指します。
 
-- **アダプター（adapter）**は、このリポジトリに含まれる 261 個の JSON 定義のいずれかです。SAP Business One、Odoo、weclapp、Xentral、Shopware、WooCommerce、Amazon Seller、DHL などがあります。そのうち 21 個は API キーを一切必要とせず、それ以外はインポート時に認証情報を設定します。
+- **アダプター（adapter）**は、このリポジトリに含まれる 263 個の JSON 定義のいずれかです。SAP Business One、Odoo、weclapp、Xentral、Shopware、WooCommerce、Amazon Seller、DHL などがあります。そのうち 21 個は API キーを一切必要とせず、それ以外はインポート時に認証情報を設定します。
 - **コネクター（connector）**は、アダプター、または独自の OpenAPI 仕様・Postman コレクション・WSDL・GraphQL エンドポイント・データベースを、ワークスペース内で設定したものです。接続先を指定すれば、MCP サーバーを書くことなく数分で設定できます。
 - **MCP サーバー**は、Claude に渡す URL です。そのサーバーに割り当てたコネクターだけを公開します。
 
@@ -115,7 +115,7 @@ WSDL を指定すると、SOAP の各オペレーションがツールになり�
 
 ### SQL データベースを MCP に
 
-PostgreSQL、MySQL、MariaDB、SQL Server、Oracle、SQLite、MongoDB に対応しています。コネクターはスキーマ、クエリー例、クエリー実行のツールを生成します。モデルに SQL を書かせるか、自分で書いたクエリーのパラメーターだけを埋めさせるかを選べます。クエリーツールは初期設定で読み取り専用で、書き込みはブロックされます。さらに読み取り専用のデータベースユーザーと、必要なツールだけが見えるロールを割り当ててください。[データベースコネクターのドキュメント](docs/connectors/database.md) · [ガイド](https://anythingmcp.com/ja/guides/database-to-mcp) · [5 分デモ: sql-to-mcp](https://github.com/HelpCode-ai/sql-to-mcp)
+PostgreSQL、MySQL、MariaDB、SQL Server、Oracle、SAP HANA、SQLite、MongoDB に対応しています。コネクターはスキーマ、クエリー例、クエリー実行のツールを生成します。モデルに SQL を書かせるか、自分で書いたクエリーのパラメーターだけを埋めさせるかを選べます。クエリーツールは初期設定で読み取り専用で、書き込みはブロックされます。さらに読み取り専用のデータベースユーザーと、必要なツールだけが見えるロールを割り当ててください。[データベースコネクターのドキュメント](docs/connectors/database.md) · [ガイド](https://anythingmcp.com/ja/guides/database-to-mcp) · [5 分デモ: sql-to-mcp](https://github.com/HelpCode-ai/sql-to-mcp)
 
 <a id="graphql-to-mcp"></a>
 
@@ -196,7 +196,7 @@ Amazon や eBay から DACH 地域のマーケットプレイスまで、ショ�
 
 ### 接続
 
-- **5 種類のコネクター** — [REST](docs/connectors/rest.md)、[SOAP](docs/connectors/soap.md)、[GraphQL](docs/connectors/graphql.md)、[データベース](docs/connectors/database.md)、[MCP 間のブリッジ](docs/connectors/mcp-bridge.md)。データベースは PostgreSQL、MySQL、MariaDB、MSSQL、Oracle、MongoDB、SQLite の 7 エンジンに対応しています。
+- **6 種類のコネクター** — [REST](docs/connectors/rest.md)、[SOAP](docs/connectors/soap.md)、[GraphQL](docs/connectors/graphql.md)、[OData](docs/connectors/odata.md)（SAP Gateway を含む）、[データベース](docs/connectors/database.md)、[MCP 間のブリッジ](docs/connectors/mcp-bridge.md)。データベースは PostgreSQL、MySQL、MariaDB、MSSQL、Oracle、SAP HANA、MongoDB、SQLite の 8 エンジンに対応しています。
 - **既存の情報からインポート** — OpenAPI/Swagger、Postman、cURL、WSDL、GraphQL イントロスペクションに対応し、稼働中の MCP サーバーから直接ツールを検出することもできます。
 - **アダプターカタログ** — [同梱されているアダプターを確認する](#the-adapter-catalog)。
 - **ビジュアルツールエディター** — パラメーターをパス、クエリ、リクエストボディ、ヘッダーに対応付けられます。ツールの名前や説明を調整し、AI が意図したとおりに理解できるようにします。
@@ -334,7 +334,7 @@ AI クライアントは MCP を使いますが、業務システムは REST、S
 
 ## アダプターカタログ
 
-261 個のアダプターで、2,400 以上のツールを公開できます。**21 個は API キーが不要**です。それ以外はインポート時に認証情報を設定すれば、すぐにツールを利用できます。各アダプターには [anythingmcp.com/guides](https://anythingmcp.com/guides) で 7 言語のセットアップガイドを用意しています。
+263 個のアダプターで、2,400 以上のツールを公開できます。**21 個は API キーが不要**です。それ以外はインポート時に認証情報を設定すれば、すぐにツールを利用できます。各アダプターには [anythingmcp.com/guides](https://anythingmcp.com/guides) で 7 言語のセットアップガイドを用意しています。
 
 | カテゴリー | 例 |
 |---|---|

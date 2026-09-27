@@ -197,6 +197,8 @@ import * as salesflare from './intl/salesflare.json';
 import * as salesloft from './intl/salesloft.json';
 import * as sapConcur from './intl/sap-concur.json';
 import * as sapS4hanaCloud from './intl/sap-s4hana-cloud.json';
+import * as sapS4hanaHana from './intl/sap-s4hana-hana.json';
+import * as sapS4hanaOdata from './intl/sap-s4hana-odata.json';
 import * as savvycal from './intl/savvycal.json';
 import * as sendgrid from './intl/sendgrid.json';
 import * as sentry from './intl/sentry.json';
@@ -262,6 +264,11 @@ import * as vismaEaccounting from './se/visma-eaccounting.json';
 import * as eConomic from './dk/e-conomic.json';
 // === AUTOGEN-IMPORTS-END ===
 import { buildGraphqlBuiltinTools } from '../connectors/graphql-builtins';
+import {
+  buildODataBuiltinTools,
+  odataToolPrefix,
+  wantsODataBuiltins,
+} from '../connectors/odata/odata-builtins';
 import { computeAdapterVersion } from './catalog-fingerprint';
 
 export interface AdapterMeta {
@@ -324,6 +331,10 @@ export interface AdapterDefinition extends AdapterMeta {
     /** Path the "Test connection" probe GETs. Without one it probes `/`, which
      *  many APIs answer with 404 — an alarming result for a healthy install. */
     healthcheckPath?: string;
+    /** Seeded into `connector.config` at install (e.g. a database adapter's
+     *  `deniedTables`, an OData adapter's `odata` settings). Keys the install
+     *  itself owns (adapterSlug, adapterVersion…) always win. */
+    config?: Record<string, unknown>;
   };
   tools: Array<{
     name: string;
@@ -377,6 +388,30 @@ function withGraphqlBuiltins(adapter: AdapterDefinition): AdapterDefinition {
   }) as unknown as AdapterDefinition['tools'];
 
   return { ...adapter, tools: [...builtins, ...adapter.tools] };
+}
+
+/**
+ * Auto-inject the five generic OData tools (list services, describe service,
+ * describe entity, query, get) onto ODATA adapters and REST adapters that
+ * carry `connector.config.odata`, mirroring what a user-created OData
+ * connector gets. Names use `config.odata.toolPrefix`, else the adapter slug.
+ */
+function withODataBuiltins(adapter: AdapterDefinition): AdapterDefinition {
+  if (!wantsODataBuiltins(adapter.connector.type, adapter.connector.config)) return adapter;
+  const odata = (adapter.connector.config?.odata ?? {}) as {
+    toolPrefix?: string;
+    sap?: boolean;
+    sapClient?: string;
+    services?: string[];
+  };
+  const builtins = buildODataBuiltinTools({
+    prefix: odataToolPrefix({ toolPrefix: odata.toolPrefix, name: adapter.slug }),
+    displayName: adapter.name,
+    sap: odata.sap === true || !!odata.sapClient,
+    listed: Array.isArray(odata.services) && odata.services.length > 0,
+  }) as unknown as AdapterDefinition['tools'];
+  const own = new Set(adapter.tools.map((t) => t.name));
+  return { ...adapter, tools: [...builtins.filter((t) => !own.has(t.name)), ...adapter.tools] };
 }
 
 // To add a new adapter:
@@ -583,6 +618,8 @@ const RAW_ADAPTERS: AdapterDefinition[] = [
   salesloft as unknown as AdapterDefinition,
   sapConcur as unknown as AdapterDefinition,
   sapS4hanaCloud as unknown as AdapterDefinition,
+  sapS4hanaHana as unknown as AdapterDefinition,
+  sapS4hanaOdata as unknown as AdapterDefinition,
   savvycal as unknown as AdapterDefinition,
   sendgrid as unknown as AdapterDefinition,
   sentry as unknown as AdapterDefinition,
@@ -649,9 +686,9 @@ const RAW_ADAPTERS: AdapterDefinition[] = [
 ];
 // === AUTOGEN-ARRAY-END ===
 
-const ALL_ADAPTERS: AdapterDefinition[] = RAW_ADAPTERS.map(
-  withGraphqlBuiltins,
-).map((adapter) => ({
+const ALL_ADAPTERS: AdapterDefinition[] = RAW_ADAPTERS.map(withGraphqlBuiltins)
+  .map(withODataBuiltins)
+  .map((adapter) => ({
   ...adapter,
   // Computed after withGraphqlBuiltins so generated GraphQL helper tools are
   // included in the fingerprint.
