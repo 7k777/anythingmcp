@@ -4,11 +4,17 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../common/prisma.service';
 import { DeploymentService } from '../common/deployment.service';
 import { SiteSettingsService } from '../settings/site-settings.service';
+import { CheckoutIntentPayload, CheckoutUnavailableError } from './license-checkout';
 
+// Production always talks to anythingmcp.com. The licence site decides
+// which plan an installation runs; a URL taken from the environment would let
+// any self-hosted operator point verification at a server of their own and
+// unlock paid features. LICENSE_API_URL applies outside production only (local
+// end-to-end runs against a local licence site).
 const LICENSE_API_URL =
   process.env.NODE_ENV === 'production'
     ? 'https://anythingmcp.com'
-    : 'http://localhost:3100';
+    : process.env.LICENSE_API_URL?.replace(/\/+$/, '') || 'http://localhost:3100';
 
 /**
  * How hard we chase a trial licence before giving up. The licence API is a
@@ -19,6 +25,8 @@ const LICENSE_API_URL =
 const TRIAL_RETRY_ATTEMPTS = 3;
 /** Read at call time so a test (or an operator) can shrink the wait. */
 const trialRetryBaseMs = () => Number(process.env.TRIAL_RETRY_BASE_MS ?? 600);
+/** A checkout link is asked for by someone waiting on a spinner: one retry, no more. */
+const CHECKOUT_RETRY_ATTEMPTS = 2;
 
 export interface LicenseInfo {
   licenseKey: string;
@@ -122,6 +130,63 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`Billing portal request failed: ${msg}`);
       throw new Error(msg);
     }
+  }
+
+  // ── Stripe Checkout (Cloud) ────────────────────────────────────────────────
+
+  /**
+   * Ask the licence site for a one-time Stripe Checkout URL (Cloud only; the
+   * caller checks the deployment mode). The licence site owns Stripe; it
+   * accepts this call only with our service token, so the email and workspace
+   * in the payload are the ones this server vouches for.
+   *
+   * A user is waiting on the other end, so the retry is short: one more try
+   * on throttling, an upstream fault or no answer at all. A duplicate intent
+   * is harmless (it simply expires unused). Every failure comes out as a
+   * CheckoutUnavailableError; the upstream detail stays in our log.
+   */
+  async createCheckoutIntent(payload: CheckoutIntentPayload): Promise<{ url: string }> {
+    const headers = this.serviceHeaders();
+    if (!headers['x-amcp-service-token']) {
+      this.logger.error('Checkout link requested but LICENSE_SERVICE_TOKEN is not set.');
+      throw new CheckoutUnavailableError('Licence service token is not configured');
+    }
+
+    let lastErr: any;
+    for (let attempt = 1; attempt <= CHECKOUT_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const { data } = await axios.post(`${this.apiBase}/api/stripe/checkout-intent`, payload, {
+          timeout: 10000,
+          headers,
+        });
+        const url = typeof data?.url === 'string' ? data.url : '';
+        if (!/^https?:\/\//i.test(url)) {
+          throw new CheckoutUnavailableError('Checkout intent answered without a URL');
+        }
+        return { url };
+      } catch (err: any) {
+        lastErr = err;
+        if (
+          err instanceof CheckoutUnavailableError ||
+          attempt === CHECKOUT_RETRY_ATTEMPTS ||
+          !this.isRetriableLicenseError(err)
+        ) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, trialRetryBaseMs()));
+      }
+    }
+
+    if (lastErr instanceof CheckoutUnavailableError) {
+      this.logger.warn(`Checkout intent failed: ${lastErr.message}`);
+      throw lastErr;
+    }
+    const status: number | undefined = lastErr?.response?.status;
+    const detail = lastErr?.response?.data?.error || lastErr?.message || 'no response';
+    this.logger.warn(
+      `Checkout intent failed (${status ?? lastErr?.code ?? 'no response'}) for org ${payload.organizationId}: ${detail}`,
+    );
+    throw new CheckoutUnavailableError(`Checkout intent failed: ${detail}`, status);
   }
 
   // ── Community License Request (sends key via email) ───────────────────────
@@ -631,6 +696,22 @@ export class LicenseService implements OnModuleInit, OnModuleDestroy {
   }
 
   // ── Get Current License ────────────────────────────────────────────────────
+
+  /**
+   * The workspace's most recent licence that is no longer active (expired,
+   * revoked, invalid), for status reporting only — never for gating. Null
+   * when the workspace has none.
+   */
+  async getLatestInactiveLicense(
+    organizationId: string,
+  ): Promise<{ plan: string; status: string; expiresAt: Date | null } | null> {
+    const license = await this.prisma.license.findFirst({
+      where: { organizationId, status: { not: 'active' } },
+      orderBy: { createdAt: 'desc' },
+      select: { plan: true, status: true, expiresAt: true },
+    });
+    return license ?? null;
+  }
 
   async getCurrentLicense(organizationId?: string): Promise<LicenseInfo | null> {
     // 1. Per-org: find license directly assigned to this organization

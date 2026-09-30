@@ -1221,6 +1221,20 @@ export const license = {
       body: { returnUrl },
       token,
     }),
+  /**
+   * Cloud only (ADMIN): a one-time Stripe Checkout URL for a plan. `trial`
+   * asks for a card trial ending with the free trial; after the trial it is
+   * a plain purchase. The buyer and workspace come from the session.
+   */
+  checkoutLink: (
+    token: string,
+    body: { plan: 'starter' | 'team' | 'business'; billingPeriod: 'monthly' | 'yearly'; trial: boolean },
+  ) =>
+    request<{ url: string }>('/api/license/checkout-link', {
+      method: 'POST',
+      body,
+      token,
+    }),
   getInstanceId: () =>
     request<{ instanceId: string }>('/api/license/instance-id'),
   getUsage: (token?: string) =>
@@ -1239,6 +1253,9 @@ export const mcpServers = {
     request<any[]>('/api/mcp-servers', { token }),
   get: (id: string, token: string) =>
     request<any>(`/api/mcp-servers/${id}`, { token }),
+  /** Calls in the last 30 days and the last one's time (the connect page's live check). */
+  activity: (id: string, token: string) =>
+    request<{ calls30d: number; lastCallAt: string | null }>(`/api/mcp-servers/${id}/activity`, { token }),
   create: (data: { name: string; slug?: string; description?: string; instructions?: string }, token: string) =>
     request<any>('/api/mcp-servers', { method: 'POST', body: data, token }),
   update: (id: string, data: { name?: string; slug?: string; description?: string; instructions?: string; isActive?: boolean }, token: string) =>
