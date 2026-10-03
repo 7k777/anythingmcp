@@ -58,7 +58,8 @@
       },
       "endpointMapping": {
         "method": "GET",
-        "path": "/api/database/fields/table/{table_id}/"
+        "path": "/api/database/fields/table/{table_id}/",
+        "encodePathParams": true
       }
     },
     {
@@ -100,7 +101,8 @@
           "search": "$search",
           "page": "$page",
           "size": "$size"
-        }
+        },
+        "encodePathParams": true
       }
     },
     {
@@ -128,7 +130,8 @@
         "path": "/api/database/rows/table/{table_id}/{row_id}/",
         "queryParams": {
           "user_field_names": true
-        }
+        },
+        "encodePathParams": true
       }
     }
   ]
