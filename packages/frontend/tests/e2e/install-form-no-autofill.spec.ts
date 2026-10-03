@@ -28,7 +28,19 @@ test('credential fields opt out of autofill, and a body-key adapter is not label
     const url = route.request().url();
     const json = (b: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) });
     if (/\/api\/adapters\/odoo-jsonrpc$/.test(url)) {
-      return json({ ...ODOO, instructions: 'Four values.', connector: { authType: 'NONE', baseUrl: '{{ODOO_URL}}' }, tools: [] });
+      return json({
+        ...ODOO,
+        instructions: 'Four values.',
+        connector: { name: 'Odoo', type: 'REST', authType: 'NONE', baseUrl: '{{ODOO_URL}}' },
+        tools: [],
+        setupKind: 'credentials',
+        envVars: [
+          { name: 'ODOO_URL', required: true, label: 'URL', kind: 'address', secret: false },
+          { name: 'ODOO_DB', required: true, label: 'Database', kind: 'setting', secret: false },
+          { name: 'ODOO_UID', required: true, label: 'User ID', kind: 'setting', secret: false },
+          { name: 'ODOO_API_KEY', required: true, label: 'API key', kind: 'credential', secret: true },
+        ],
+      });
     }
     if (/\/api\/adapters(\?|$)/.test(url)) return json([ODOO, HN]);
     if (url.includes('/api/users/me/onboarding-state')) return json({ onboardingCompletedAt: '2026-01-01T00:00:00Z' });
@@ -43,9 +55,11 @@ test('credential fields opt out of autofill, and a body-key adapter is not label
   await expect(page.getByText('API Key', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Public API', { exact: true })).toHaveCount(1); // Hacker News only
 
+  // Install opens the guided setup, whose fields carry the same opt-outs.
   await page.getByRole('button', { name: 'Install' }).first().click();
-  const uid = page.locator('#cred-ODOO_UID');
-  const key = page.locator('#cred-ODOO_API_KEY');
+  await page.waitForURL(/\/connectors\/setup\/odoo-jsonrpc/);
+  const uid = page.getByLabel('User ID');
+  const key = page.getByLabel('API key');
   await expect(uid).toBeVisible({ timeout: 10_000 });
   await expect(uid).toHaveAttribute('autocomplete', 'off');
   await expect(key).toHaveAttribute('autocomplete', 'new-password');
